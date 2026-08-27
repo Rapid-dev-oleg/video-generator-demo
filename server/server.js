@@ -33,6 +33,15 @@ app.get('/api/health', (req, res) => {
   res.json({ ok: true, xai: !!process.env.XAI_API_KEY });
 });
 
+// Serve production client build (so a single port can be exposed via tunnel)
+const clientDist = path.join(__dirname, '..', 'client', 'dist');
+if (fs.existsSync(clientDist)) {
+  app.use(express.static(clientDist));
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(clientDist, 'index.html'));
+  });
+}
+
 // Ensure dirs
 ensureDir(path.join(__dirname, 'uploads/images'));
 ensureDir(path.join(__dirname, 'uploads/audio'));
