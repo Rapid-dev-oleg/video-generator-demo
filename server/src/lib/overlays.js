@@ -106,10 +106,21 @@ async function renderQRBlock(url) {
 }
 
 async function renderAgentCardBlock({ avatar, logo, name, phone, email }) {
-  const width = 420;
-  const height = 170;
+  const width = 560;
+  const height = 220;
+  const padding = 24;
+  const imageSize = 110;
   const avatarBase64 = avatar ? toBase64(path.join(IMAGES_DIR, avatar)) : null;
   const logoBase64 = logo ? toBase64(path.join(IMAGES_DIR, logo)) : null;
+
+  const centerY = height / 2;
+  const avatarX = padding;
+  const avatarY = centerY - imageSize / 2;
+  const logoX = width - padding - imageSize;
+  const logoY = centerY - imageSize / 2;
+  const textX = padding + imageSize + 20;
+  const textRight = logoX - 16;
+  const textWidth = Math.max(180, textRight - textX);
 
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
@@ -117,14 +128,15 @@ async function renderAgentCardBlock({ avatar, logo, name, phone, email }) {
         <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
           <feDropShadow dx="0" dy="2" stdDeviation="6" flood-color="#000" flood-opacity="0.45"/>
         </filter>
-        <clipPath id="avatarClip"><circle cx="54" cy="85" r="40"/></clipPath>
+        <clipPath id="avatarClip"><circle cx="${avatarX + imageSize / 2}" cy="${centerY}" r="${imageSize / 2}"/></clipPath>
+        <clipPath id="logoClip"><rect x="${logoX}" y="${logoY}" width="${imageSize}" height="${imageSize}" rx="14"/></clipPath>
       </defs>
-      <rect x="0" y="0" width="${width}" height="${height}" rx="14" fill="rgba(10,10,15,0.82)" filter="url(#shadow)"/>
-      ${avatarBase64 ? `<image x="14" y="45" width="80" height="80" xlink:href="${avatarBase64}" clip-path="url(#avatarClip)" preserveAspectRatio="xMidYMid slice"/>` : `<circle cx="54" cy="85" r="40" fill="#334155"/>`}
-      ${logoBase64 ? `<image x="${width - 130}" y="14" width="110" height="44" xlink:href="${logoBase64}" preserveAspectRatio="xMidYMid meet"/>` : ''}
-      <text x="110" y="62" fill="#f8fafc" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="700">${escapeXml(name || '')}</text>
-      <text x="110" y="96" fill="#cbd5e1" font-family="system-ui, -apple-system, sans-serif" font-size="16">${escapeXml(phone || '')}</text>
-      <text x="110" y="124" fill="#94a3b8" font-family="system-ui, -apple-system, sans-serif" font-size="14">${escapeXml(email || '')}</text>
+      <rect x="0" y="0" width="${width}" height="${height}" rx="16" fill="rgba(10,10,15,0.85)" filter="url(#shadow)"/>
+      ${avatarBase64 ? `<image x="${avatarX}" y="${avatarY}" width="${imageSize}" height="${imageSize}" xlink:href="${avatarBase64}" clip-path="url(#avatarClip)" preserveAspectRatio="xMidYMid slice"/>` : `<circle cx="${avatarX + imageSize / 2}" cy="${centerY}" r="${imageSize / 2}" fill="#334155"/>`}
+      ${logoBase64 ? `<image x="${logoX}" y="${logoY}" width="${imageSize}" height="${imageSize}" xlink:href="${logoBase64}" clip-path="url(#logoClip)" preserveAspectRatio="xMidYMid meet"/>` : ''}
+      <text x="${textX}" y="${centerY - 34}" fill="#f8fafc" font-family="system-ui, -apple-system, sans-serif" font-size="26" font-weight="700">${escapeXml(name || '')}</text>
+      <text x="${textX}" y="${centerY + 6}" fill="#e2e8f0" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="500">${escapeXml(phone || '')}</text>
+      <text x="${textX}" y="${centerY + 44}" fill="#94a3b8" font-family="system-ui, -apple-system, sans-serif" font-size="17">${escapeXml(email || '')}</text>
     </svg>
   `;
   return sharp(Buffer.from(svg)).png().toBuffer();
@@ -159,7 +171,7 @@ function getBlockSize(overlay) {
   switch (overlay.type) {
     case 'address': return getAddressSize(overlay.text);
     case 'qr': return { width: 200, height: 200 };
-    case 'agent-card': return { width: 420, height: 170 };
+    case 'agent-card': return { width: 560, height: 220 };
     default: return { width: 200, height: 100 };
   }
 }
