@@ -78,6 +78,7 @@ export default function AudioTrack({ selectedAudio, onSelectAudio }) {
             key={a.id}
             onClick={() => onSelectAudio(a.id)}
             style={{
+              position: 'relative',
               padding: '8px 10px',
               borderRadius: 6,
               background: selectedAudio === a.id ? '#3f1e3a' : '#1e293b',
@@ -87,6 +88,7 @@ export default function AudioTrack({ selectedAudio, onSelectAudio }) {
               display: 'flex',
               alignItems: 'center',
               gap: 8,
+              paddingRight: 34,
             }}
           >
             <span>🎵</span>
