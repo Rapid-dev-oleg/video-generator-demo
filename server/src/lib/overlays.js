@@ -58,12 +58,12 @@ async function getVideoDimensions(videoPath) {
 
 async function renderAddressBlock(text, align = 'center') {
   const padding = 30;
-  const fontSize = 14;
-  const lineHeight = fontSize + 6;
+  const fontSize = 26;
+  const lineHeight = fontSize + 8;
   const rawLines = String(text || '').split('\n');
   const lines = rawLines.map(escapeXml);
-  const width = measureAddressWidth(rawLines, padding);
-  const height = Math.max(60, lines.length * lineHeight + padding * 2);
+  const width = measureAddressWidth(rawLines, padding, fontSize);
+  const height = Math.max(80, lines.length * lineHeight + padding * 2);
 
   const anchor = align === 'left' ? 'start' : align === 'right' ? 'end' : 'middle';
   const x = align === 'left' ? padding : align === 'right' ? width - padding : width / 2;
@@ -151,19 +151,19 @@ async function renderBlock(overlay) {
   }
 }
 
-function measureAddressWidth(lines, padding) {
-  const charWidth = 8.5; // approximate for 14px system-ui
+function measureAddressWidth(lines, padding, fontSize) {
+  const charWidth = fontSize * 0.6; // approximate for system-ui
   const longest = Math.max(0, ...lines.map(l => l.length));
-  return Math.min(900, Math.max(200, Math.ceil(longest * charWidth + padding * 2)));
+  return Math.min(900, Math.max(240, Math.ceil(longest * charWidth + padding * 2)));
 }
 
 function getAddressSize(text) {
   const padding = 30;
-  const fontSize = 14;
-  const lineHeight = fontSize + 6;
+  const fontSize = 26;
+  const lineHeight = fontSize + 8;
   const rawLines = String(text || '').split('\n');
-  const width = measureAddressWidth(rawLines, padding);
-  const height = Math.max(60, rawLines.length * lineHeight + padding * 2);
+  const width = measureAddressWidth(rawLines, padding, fontSize);
+  const height = Math.max(80, rawLines.length * lineHeight + padding * 2);
   return { width, height };
 }
 
