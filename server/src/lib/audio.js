@@ -44,7 +44,8 @@ async function addAudioTrack(videoPath, audioPath, outputPath, options = {}) {
 /**
  * Накладывает два аудио трека на видео в разные стерео-каналы.
  * leftAudio → левый канал, rightAudio → правый канал.
- * Видео не обрезается; аудио обрезается по длине видео.
+ * Каждый канал играет полную длину своего трека; короткий дополняется тишиной.
+ * Видео не обрезается.
  * @param {string} videoPath
  * @param {string} leftAudioPath
  * @param {string} rightAudioPath
@@ -56,7 +57,11 @@ async function addAudioTrack(videoPath, audioPath, outputPath, options = {}) {
 async function addStereoAudioTrack(videoPath, leftAudioPath, rightAudioPath, outputPath, options = {}) {
   const { leftVolume = 1.0, rightVolume = 1.0 } = options;
 
-  const videoDuration = await getVideoDuration(videoPath);
+  const leftDuration = await getVideoDuration(leftAudioPath);
+  const rightDuration = await getVideoDuration(rightAudioPath);
+  const maxDuration = Math.max(leftDuration, rightDuration);
+  const sampleRate = 48000;
+  const wholeLen = Math.ceil(maxDuration * sampleRate);
 
   return new Promise((resolve, reject) => {
     ffmpeg()
@@ -64,9 +69,9 @@ async function addStereoAudioTrack(videoPath, leftAudioPath, rightAudioPath, out
       .input(leftAudioPath)
       .input(rightAudioPath)
       .complexFilter([
-        `[1:a]atrim=0:${videoDuration},asetpts=PTS-STARTPTS,volume=${leftVolume}[left];\
-         [2:a]atrim=0:${videoDuration},asetpts=PTS-STARTPTS,volume=${rightVolume}[right];\
-         [left][right]join=inputs=2:channel_layout=stereo:map=0.0-FL|1.0-FR[a]`,
+        `[1:a]aformat=sample_fmts=fltp:sample_rates=${sampleRate}:channel_layouts=mono,volume=${leftVolume},apad=whole_len=${wholeLen}[left];` +
+        `[2:a]aformat=sample_fmts=fltp:sample_rates=${sampleRate}:channel_layouts=mono,volume=${rightVolume},apad=whole_len=${wholeLen}[right];` +
+        `[left][right]amerge=inputs=2[a]`,
         '[0:v]copy[v]'
       ])
       .outputOptions(['-map', '[v]', '-map', '[a]'])
