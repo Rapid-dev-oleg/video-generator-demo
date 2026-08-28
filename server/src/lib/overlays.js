@@ -30,16 +30,17 @@ function positionAlign(position) {
 }
 
 function getPosition(videoWidth, videoHeight, blockWidth, blockHeight, position, padding = 24) {
+  const bottomOffset = Math.round(videoHeight * 0.1);
   switch (position) {
-    case 'bottom-center': return { x: Math.round((videoWidth - blockWidth) / 2), y: videoHeight - blockHeight - padding };
-    case 'bottom-left': return { x: padding, y: videoHeight - blockHeight - padding };
-    case 'bottom-right': return { x: videoWidth - blockWidth - padding, y: videoHeight - blockHeight - padding };
+    case 'bottom-center': return { x: Math.round((videoWidth - blockWidth) / 2), y: videoHeight - blockHeight - padding - bottomOffset };
+    case 'bottom-left': return { x: padding, y: videoHeight - blockHeight - padding - bottomOffset };
+    case 'bottom-right': return { x: videoWidth - blockWidth - padding, y: videoHeight - blockHeight - padding - bottomOffset };
     case 'top-left': return { x: padding, y: padding };
     case 'top-right': return { x: videoWidth - blockWidth - padding, y: padding };
     case 'right-middle': return { x: videoWidth - blockWidth - padding, y: Math.round((videoHeight - blockHeight) / 2) };
     case 'left-middle': return { x: padding, y: Math.round((videoHeight - blockHeight) / 2) };
     case 'center': return { x: Math.round((videoWidth - blockWidth) / 2), y: Math.round((videoHeight - blockHeight) / 2) };
-    default: return { x: padding, y: videoHeight - blockHeight - padding };
+    default: return { x: padding, y: videoHeight - blockHeight - padding - bottomOffset };
   }
 }
 
