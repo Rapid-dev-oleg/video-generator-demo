@@ -16,8 +16,11 @@ export const uploadAudio = (file) => {
   fd.append('audio', file);
   return api.post('/audio/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data);
 };
-export const generateTTS = (text, voice) => api.post('/audio/tts', { text, voice }).then(r => r.data);
+export const generateTTS = (text, voice, language = 'auto') => api.post('/audio/tts', { text, voice, language }).then(r => r.data);
+export const deleteAudio = (id) => api.delete(`/audio/${id}`).then(r => r.data);
 export const fetchVoices = () => api.get('/audio/voices').then(r => r.data);
+export const fetchLanguages = () => api.get('/audio/languages').then(r => r.data);
+export const deleteClip = (filename) => api.delete(`/clips/${encodeURIComponent(filename)}`).then(r => r.data);
 
 export const generateVideo = (params) => api.post('/generate', params).then(r => r.data);
 export const checkStatus = (requestId) => api.get(`/generate/${requestId}/status`).then(r => r.data);

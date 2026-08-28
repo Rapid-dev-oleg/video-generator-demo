@@ -142,6 +142,7 @@ function App() {
         onClose={() => setLibraryOpen(false)}
         onSelect={handleLibrarySelect}
         onPreview={setPreviewSrc}
+        onDelete={refreshLibrary}
       />
 
       {loading && (

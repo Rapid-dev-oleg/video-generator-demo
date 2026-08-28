@@ -33,8 +33,7 @@ async function addAudioTrack(videoPath, audioPath, outputPath, options = {}) {
         filterComplex,
         '[0:v]copy[v]'
       ])
-      // Убираем -shortest, чтобы длина видео не сокращалась до длины аудио
-      .outputOptions(['-map', '[v]', '-map', '[a]'])
+      .outputOptions(['-map', '[v]', '-map', '[a]', '-shortest'])
       .on('end', () => resolve(outputPath))
       .on('error', (err) => reject(new Error(`Audio overlay failed: ${err.message}`)))
       .save(outputPath);
@@ -44,8 +43,8 @@ async function addAudioTrack(videoPath, audioPath, outputPath, options = {}) {
 /**
  * Накладывает два аудио трека на видео в разные стерео-каналы.
  * leftAudio → левый канал, rightAudio → правый канал.
- * Каждый канал играет полную длину своего трека; короткий дополняется тишиной.
- * Видео не обрезается.
+ * Каждый канал обрезается или дополняется тишиной точно до длины видео.
+ * Длина выходного видео не меняется.
  * @param {string} videoPath
  * @param {string} leftAudioPath
  * @param {string} rightAudioPath
@@ -57,11 +56,9 @@ async function addAudioTrack(videoPath, audioPath, outputPath, options = {}) {
 async function addStereoAudioTrack(videoPath, leftAudioPath, rightAudioPath, outputPath, options = {}) {
   const { leftVolume = 1.0, rightVolume = 1.0 } = options;
 
-  const leftDuration = await getVideoDuration(leftAudioPath);
-  const rightDuration = await getVideoDuration(rightAudioPath);
-  const maxDuration = Math.max(leftDuration, rightDuration);
+  const videoDuration = await getVideoDuration(videoPath);
   const sampleRate = 48000;
-  const wholeLen = Math.ceil(maxDuration * sampleRate);
+  const wholeLen = Math.ceil(videoDuration * sampleRate);
 
   return new Promise((resolve, reject) => {
     ffmpeg()
@@ -69,12 +66,12 @@ async function addStereoAudioTrack(videoPath, leftAudioPath, rightAudioPath, out
       .input(leftAudioPath)
       .input(rightAudioPath)
       .complexFilter([
-        `[1:a]aformat=sample_fmts=fltp:sample_rates=${sampleRate}:channel_layouts=mono,volume=${leftVolume},apad=whole_len=${wholeLen}[left];` +
-        `[2:a]aformat=sample_fmts=fltp:sample_rates=${sampleRate}:channel_layouts=mono,volume=${rightVolume},apad=whole_len=${wholeLen}[right];` +
+        `[1:a]aformat=sample_fmts=fltp:sample_rates=${sampleRate}:channel_layouts=mono,volume=${leftVolume},atrim=0:${videoDuration},asetpts=PTS-STARTPTS,apad=whole_len=${wholeLen}[left];` +
+        `[2:a]aformat=sample_fmts=fltp:sample_rates=${sampleRate}:channel_layouts=mono,volume=${rightVolume},atrim=0:${videoDuration},asetpts=PTS-STARTPTS,apad=whole_len=${wholeLen}[right];` +
         `[left][right]amerge=inputs=2[a]`,
         '[0:v]copy[v]'
       ])
-      .outputOptions(['-map', '[v]', '-map', '[a]'])
+      .outputOptions(['-map', '[v]', '-map', '[a]', '-shortest'])
       .on('end', () => resolve(outputPath))
       .on('error', (err) => reject(new Error(`Stereo audio overlay failed: ${err.message}`)))
       .save(outputPath);

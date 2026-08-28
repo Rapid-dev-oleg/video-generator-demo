@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { fetchImages, uploadImage, deleteImage } from '../hooks/useApi';
+import { fetchImages, uploadImage, deleteImage, deleteClip } from '../hooks/useApi';
 
 const TABS = [
   { id: 'images', label: '🖼 Images' },
@@ -7,7 +7,7 @@ const TABS = [
   { id: 'videos', label: '🎞 Videos' },
 ];
 
-export default function Library({ open, initialTab = 'images', mode = 'single', onClose, onSelect, onPreview, clips = [], videos = [] }) {
+export default function Library({ open, initialTab = 'images', mode = 'single', onClose, onSelect, onPreview, onDelete, clips = [], videos = [] }) {
   const [tab, setTab] = useState(initialTab);
   const [images, setImages] = useState([]);
   const [selected, setSelected] = useState([]);
@@ -73,6 +73,14 @@ export default function Library({ open, initialTab = 'images', mode = 'single', 
     await deleteImage(id);
     loadImages();
     setSelected(prev => prev.filter(s => s.id !== id));
+  };
+
+  const handleDeleteVideo = async (filename, e) => {
+    e.stopPropagation();
+    if (!confirm('Delete video file?')) return;
+    await deleteClip(filename);
+    onDelete?.(filename);
+    setSelected(prev => prev.filter(s => s.filename !== filename));
   };
 
   const imageItems = images.map(img => ({ type: 'image', key: img.id, id: img.id, url: img.url, name: img.name }));
@@ -143,9 +151,11 @@ export default function Library({ open, initialTab = 'images', mode = 'single', 
                     title="Preview"
                   >👁</button>
                 )}
-                {item.type === 'image' && (
-                  <button className="library-item-delete" onClick={(e) => handleDeleteImage(item.id, e)}>×</button>
-                )}
+                <button
+                  className="library-item-delete"
+                  onClick={(e) => item.type === 'image' ? handleDeleteImage(item.id, e) : handleDeleteVideo(item.filename, e)}
+                  title="Delete"
+                >×</button>
               </div>
             ))}
             {currentItems.length === 0 && (

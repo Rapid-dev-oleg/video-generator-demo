@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { fetchAudio, uploadAudio, generateTTS, fetchVoices } from '../hooks/useApi';
+import { fetchAudio, uploadAudio, generateTTS, fetchVoices, fetchLanguages, deleteAudio } from '../hooks/useApi';
 
 export default function AudioTrack({ selectedAudio, onSelectAudio }) {
   const [audioList, setAudioList] = useState([]);
   const [voices, setVoices] = useState([]);
+  const [languages, setLanguages] = useState([]);
   const [ttsText, setTtsText] = useState('');
   const [ttsVoice, setTtsVoice] = useState('eve');
+  const [ttsLanguage, setTtsLanguage] = useState('auto');
   const [uploading, setUploading] = useState(false);
 
   const load = () => {
@@ -15,6 +17,7 @@ export default function AudioTrack({ selectedAudio, onSelectAudio }) {
   useEffect(() => {
     load();
     fetchVoices().then(setVoices).catch(console.error);
+    fetchLanguages().then(setLanguages).catch(console.error);
   }, []);
 
   const handleUpload = async (e) => {
@@ -28,8 +31,18 @@ export default function AudioTrack({ selectedAudio, onSelectAudio }) {
   const handleTTS = async () => {
     if (!ttsText.trim()) return;
     try {
-      await generateTTS(ttsText, ttsVoice);
+      await generateTTS(ttsText, ttsVoice, ttsLanguage);
       setTtsText('');
+      load();
+    } catch (err) { alert(err.response?.data?.error || err.message); }
+  };
+
+  const handleDelete = async (id, e) => {
+    e.stopPropagation();
+    if (!confirm('Delete audio file?')) return;
+    try {
+      await deleteAudio(id);
+      if (selectedAudio === id) onSelectAudio('');
       load();
     } catch (err) { alert(err.response?.data?.error || err.message); }
   };
@@ -40,10 +53,15 @@ export default function AudioTrack({ selectedAudio, onSelectAudio }) {
 
       <div style={{ marginBottom: 12 }}>
         <label className="label">Generate Voice (TTS)</label>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <select className="select" style={{ width: 100 }} value={ttsVoice} onChange={e => setTtsVoice(e.target.value)}>
+        <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+          <select className="select" style={{ width: 90 }} value={ttsVoice} onChange={e => setTtsVoice(e.target.value)}>
             {voices.map(v => <option key={v} value={v}>{v}</option>)}
           </select>
+          <select className="select" style={{ width: 100 }} value={ttsLanguage} onChange={e => setTtsLanguage(e.target.value)}>
+            {languages.map(l => <option key={l.id} value={l.id}>{l.label}</option>)}
+          </select>
+        </div>
+        <div style={{ display: 'flex', gap: 6 }}>
           <input className="input" placeholder="Text to speak..." value={ttsText} onChange={e => setTtsText(e.target.value)} />
           <button className="btn" style={{ padding: '8px 12px' }} onClick={handleTTS}>TTS</button>
         </div>
@@ -72,8 +90,13 @@ export default function AudioTrack({ selectedAudio, onSelectAudio }) {
             }}
           >
             <span>🎵</span>
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</span>
-            <audio src={a.url} style={{ width: 80, height: 20, marginLeft: 'auto' }} controls />
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{a.name}</span>
+            <audio src={a.url} style={{ width: 80, height: 20 }} controls />
+            <button
+              className="library-item-delete"
+              onClick={(e) => handleDelete(a.id, e)}
+              title="Delete"
+            >×</button>
           </div>
         ))}
         {audioList.length === 0 && <span style={{ color: '#64748b', fontSize: 12 }}>No audio files</span>}

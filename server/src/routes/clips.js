@@ -141,4 +141,10 @@ router.post('/logo-upload', (req, res) => {
   });
 });
 
+router.delete('/:filename', (req, res) => {
+  const filePath = path.join(OUTPUT_DIR, req.params.filename);
+  if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  res.json({ ok: true });
+});
+
 module.exports = router;
