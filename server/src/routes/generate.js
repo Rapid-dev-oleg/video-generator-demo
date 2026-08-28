@@ -11,22 +11,22 @@ const OUTPUT_DIR = path.join(__dirname, '../../uploads/output');
 ensureDir(OUTPUT_DIR);
 
 const CAMERA_PROMPTS = {
-  'slow_zoom_in': 'slow cinematic zoom in on <IMAGE_1>, dramatic push-in, professional camera movement',
-  'slow_zoom_out': 'slow cinematic zoom out from <IMAGE_1>, revealing the environment, wide establishing shot',
-  'pan_right': 'smooth camera pan to the right across <IMAGE_1>, maintaining sharp focus, tracking shot',
-  'orbit_left': 'slow 360-degree orbit around <IMAGE_1>, cinematic tracking shot, full rotation',
+  'slow_zoom_in': 'slow cinematic zoom in, dramatic push-in, professional camera movement',
+  'slow_zoom_out': 'slow cinematic zoom out, revealing the environment, wide establishing shot',
+  'pan_right': 'smooth camera pan to the right, maintaining sharp focus, tracking shot',
+  'orbit_left': 'slow 360-degree orbit, cinematic tracking shot, full rotation',
   'parallax_push': 'subtle parallax depth effect, camera pushes forward while background shifts, 3D motion'
 };
 
 router.post('/', async (req, res) => {
   const requestId = `gen_${Date.now()}`;
   try {
-    const { imageId, duration = 5, aspectRatio = '16:9', resolution = '720p', cameraMove = 'slow_zoom_in', voice, voiceText } = req.body;
+    const { imageId, duration = 5, aspectRatio = '16:9', resolution = '1080p', cameraMove = 'slow_zoom_in' } = req.body;
     console.log(`[${requestId}] Incoming request body:`, JSON.stringify(req.body, null, 2));
 
     if (!imageId) return res.status(400).json({ error: 'imageId required' });
-    if (resolution && !['480p', '720p'].includes(resolution)) {
-      return res.status(400).json({ error: `Resolution ${resolution} is not supported by xAI reference-to-video. Use 480p or 720p.` });
+    if (resolution && !['480p', '720p', '1080p'].includes(resolution)) {
+      return res.status(400).json({ error: `Resolution ${resolution} is not supported. Use 480p, 720p or 1080p.` });
     }
 
     const apiKey = process.env.XAI_API_KEY;
@@ -43,11 +43,7 @@ router.post('/', async (req, res) => {
     const croppedPath = path.join(OUTPUT_DIR, `crop_${imageId}`);
     await cropImage(imagePath, croppedPath, { ratio: aspectRatio, resolution, fit: 'cover' });
 
-    // Build prompt
-    let prompt = CAMERA_PROMPTS[cameraMove] || CAMERA_PROMPTS['slow_zoom_in'];
-    if (voice && voiceText) {
-      prompt += `. The person from <IMAGE_1> speaks with the voice from <AUDIO_0>, saying: "${voiceText}"`;
-    }
+    const prompt = CAMERA_PROMPTS[cameraMove] || CAMERA_PROMPTS['slow_zoom_in'];
     console.log(`[${requestId}] Built prompt:`, prompt);
 
     const options = {
@@ -60,9 +56,6 @@ router.post('/', async (req, res) => {
       model: 'grok-imagine-video-1.5',
     };
 
-    if (voice) {
-      options.referenceAudios = [{ voice_id: voice }];
-    }
     console.log(`[${requestId}] Options passed to generate lib:`, JSON.stringify({ ...options, apiKey: '***' }, null, 2));
 
     const task = await createGenerationTask(options);

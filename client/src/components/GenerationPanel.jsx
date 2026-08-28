@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { generateVideo, fetchVoices } from '../hooks/useApi';
+import { useState } from 'react';
+import { generateVideo } from '../hooks/useApi';
 
 const CAMERA_MOVES = [
   { id: 'slow_zoom_in', label: '🔍 Slow Zoom In' },
@@ -12,16 +12,9 @@ const CAMERA_MOVES = [
 export default function GenerationPanel({ selectedImage, onPickImage, onGenerated, onStatus }) {
   const [duration, setDuration] = useState(5);
   const [cameraMove, setCameraMove] = useState('slow_zoom_in');
-  const [voice, setVoice] = useState('');
-  const [voiceText, setVoiceText] = useState('');
   const [aspectRatio, setAspectRatio] = useState('16:9');
-  const [resolution, setResolution] = useState('720p');
-  const [voices, setVoices] = useState([]);
+  const [resolution, setResolution] = useState('1080p');
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    fetchVoices().then(setVoices).catch(console.error);
-  }, []);
 
   const handleGenerate = async () => {
     if (!selectedImage) return alert('Select an image first');
@@ -34,8 +27,6 @@ export default function GenerationPanel({ selectedImage, onPickImage, onGenerate
         aspectRatio,
         resolution,
         cameraMove,
-        voice: voice || undefined,
-        voiceText: voiceText || undefined,
       });
       onStatus({ open: true, requestId: res.requestId, message: 'Task created. Waiting for generation...' });
       onGenerated?.(res);
@@ -79,7 +70,8 @@ export default function GenerationPanel({ selectedImage, onPickImage, onGenerate
           <div>
             <label className="label">Resolution</label>
             <select className="select" value={resolution} onChange={e => setResolution(e.target.value)}>
-              <option value="720p">720p (max for reference-to-video)</option>
+              <option value="1080p">1080p</option>
+              <option value="720p">720p</option>
               <option value="480p">480p</option>
             </select>
           </div>
@@ -99,23 +91,6 @@ export default function GenerationPanel({ selectedImage, onPickImage, onGenerate
             <select className="select" value={cameraMove} onChange={e => setCameraMove(e.target.value)}>
               {CAMERA_MOVES.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
             </select>
-          </div>
-        </div>
-      </div>
-
-      <div className="gen-section">
-        <div className="gen-section-title">3. Voice (optional)</div>
-        <div className="grid-2">
-          <div>
-            <label className="label">Voice</label>
-            <select className="select" value={voice} onChange={e => setVoice(e.target.value)}>
-              <option value="">— No voice —</option>
-              {voices.map(v => <option key={v} value={v}>{v}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="label">Spoken Text</label>
-            <input className="input" value={voiceText} onChange={e => setVoiceText(e.target.value)} placeholder="What should the character say?" />
           </div>
         </div>
       </div>

@@ -6,16 +6,15 @@ const { downloadFile } = require('./utils');
 const API_BASE = 'https://api.x.ai/v1';
 
 /**
- * Создаёт задачу на генерацию видео через xAI reference-to-video
+ * Создаёт задачу на генерацию видео через xAI image-to-video
  * @param {Object} options
  * @param {string} options.apiKey — XAI API ключ
- * @param {string} options.prompt — текст промпта. Используй <IMAGE_1> для ссылки на первое изображение
- * @param {string[]} options.imagePaths — массив путей к изображениям (локальные файлы). Будут конвертированы в base64.
+ * @param {string} options.prompt — текст промпта, описывающего движение
+ * @param {string[]} options.imagePaths — массив путей к изображениям. Используется первое.
  * @param {number} options.duration — длительность в секундах (макс 15 для 1.5)
  * @param {string} options.aspectRatio — "16:9", "9:16", "1:1"
- * @param {string} options.resolution — "720p" (максимум для reference-to-video)
+ * @param {string} options.resolution — "480p", "720p", "1080p"
  * @param {string} options.model — "grok-imagine-video-1.5" (по умолчанию)
- * @param {Array} options.referenceAudios — [{ voice_id: "eve" }] — опционально
  */
 async function createGenerationTask(options) {
   const {
@@ -24,9 +23,8 @@ async function createGenerationTask(options) {
     imagePaths = [],
     duration = 5,
     aspectRatio = '16:9',
-    resolution = '720p',
+    resolution = '1080p',
     model = 'grok-imagine-video-1.5',
-    referenceAudios = [],
   } = options;
 
   if (!apiKey) throw new Error('apiKey is required');
@@ -35,30 +33,23 @@ async function createGenerationTask(options) {
   }
   if (!prompt) throw new Error('prompt is required');
   if (imagePaths.length === 0) throw new Error('At least one imagePath is required');
-  if (imagePaths.length > 7) throw new Error('Maximum 7 reference images allowed');
 
-  // Конвертируем локальные файлы в base64 data URI
-  const referenceImages = imagePaths.map(p => {
-    const data = fs.readFileSync(p);
-    const ext = path.extname(p).toLowerCase();
-    const mime = ext === '.png' ? 'image/png' : 
-                 ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : 'image/png';
-    const base64 = data.toString('base64');
-    return { url: `data:${mime};base64,${base64}` };
-  });
+  const imagePath = imagePaths[0];
+  const data = fs.readFileSync(imagePath);
+  const ext = path.extname(imagePath).toLowerCase();
+  const mime = ext === '.png' ? 'image/png' :
+               ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : 'image/png';
+  const base64 = data.toString('base64');
+  const imageUrl = `data:${mime};base64,${base64}`;
 
   const payload = {
     model,
     prompt,
-    reference_images: referenceImages,
+    image: { url: imageUrl },
     duration,
     aspect_ratio: aspectRatio,
     resolution,
   };
-
-  if (referenceAudios.length > 0) {
-    payload.reference_audios = referenceAudios;
-  }
 
   console.log('[xAI] Payload:', JSON.stringify(payload, null, 2));
   console.log('[xAI] Authorization header (masked):', `Bearer ${apiKey.slice(0, 4)}...${apiKey.slice(-4)}`);
