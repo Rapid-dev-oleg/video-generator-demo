@@ -31,8 +31,8 @@ export default function AudioModal({ open, onClose, videoFile, audioList = [], o
       <div className="library-modal" onClick={e => e.stopPropagation()}>
         <div className="library-header">
           <div>
-            <h3>🎧 Stereo Audio</h3>
-            <p style={{ margin: '4px 0 0', fontSize: 12, color: '#64748b' }}>Each channel keeps its own length</p>
+            <h3>🎧 Audio</h3>
+            <p style={{ margin: '4px 0 0', fontSize: 12, color: '#64748b' }}>Left and right stereo channels</p>
           </div>
           <button className="library-close" onClick={onClose}>×</button>
         </div>
@@ -68,7 +68,7 @@ export default function AudioModal({ open, onClose, videoFile, audioList = [], o
           <div className="library-actions">
             <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
             <button className="btn" onClick={handleApply} disabled={processing || disabled}>
-              {processing ? 'Applying...' : 'Apply stereo audio'}
+              {processing ? 'Applying...' : 'Apply audio'}
             </button>
           </div>
         </div>

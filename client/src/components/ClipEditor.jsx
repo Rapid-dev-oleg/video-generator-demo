@@ -146,7 +146,7 @@ export default function ClipEditor({ segments, setSegments, onPreview, onLoading
           🔗 Merge timeline into video
         </button>
         <button className="btn btn-secondary" onClick={() => setAudioOpen(true)} disabled={processing || segments.length === 0}>
-          🎧 Stereo audio
+          🎧 Audio
         </button>
         <button className="btn btn-secondary" onClick={() => setOverlaysOpen(true)} disabled={processing || segments.length === 0}>
           🎨 Overlays
