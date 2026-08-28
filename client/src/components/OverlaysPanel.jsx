@@ -59,12 +59,20 @@ export default function OverlaysPanel({ open, onClose, videoFile, onApplied, dis
     setDraft({ ...DEFAULT_OVERLAY, type, position });
   };
 
+  const startEdit = (overlay) => {
+    setDraft({ ...overlay });
+  };
+
   const saveDraft = () => {
     if (!draft) return;
     if (draft.type === 'address' && !draft.text.trim()) return alert('Enter address text');
     if (draft.type === 'qr' && !draft.url.trim()) return alert('Enter QR URL');
     if (draft.type === 'agent-card' && !draft.name.trim()) return alert('Enter agent name');
-    setOverlays([...overlays, { ...draft, id: Date.now() }]);
+    if (draft.id) {
+      setOverlays(overlays.map(o => o.id === draft.id ? { ...draft } : o));
+    } else {
+      setOverlays([...overlays, { ...draft, id: Date.now() }]);
+    }
     setDraft(null);
   };
 
@@ -127,7 +135,7 @@ export default function OverlaysPanel({ open, onClose, videoFile, onApplied, dis
 
           {draft && (
             <div className="gen-section" style={{ marginBottom: 12 }}>
-              <div className="gen-section-title">New {draft.type}</div>
+              <div className="gen-section-title">{draft.id ? 'Edit' : 'New'} {draft.type}</div>
 
               <div style={{ marginBottom: 8 }}>
                 <label className="label">Position</label>
@@ -206,7 +214,10 @@ export default function OverlaysPanel({ open, onClose, videoFile, onApplied, dis
             {overlays.map(o => (
               <div key={o.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#1e293b', padding: '8px 10px', borderRadius: 6, fontSize: 13 }}>
                 <span>{summary(o)} <span style={{ color: '#64748b' }}>({POSITIONS.find(p => p.id === o.position)?.label})</span></span>
-                <button className="btn btn-secondary" style={{ padding: '4px 8px', fontSize: 12 }} onClick={() => removeOverlay(o.id)}>Remove</button>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button className="btn btn-secondary" style={{ padding: '4px 8px', fontSize: 12 }} onClick={() => startEdit(o)} disabled={!!draft}>Edit</button>
+                  <button className="btn btn-secondary" style={{ padding: '4px 8px', fontSize: 12 }} onClick={() => removeOverlay(o.id)}>Remove</button>
+                </div>
               </div>
             ))}
             {overlays.length === 0 && <span style={{ color: '#64748b', fontSize: 12 }}>No overlays yet</span>}
