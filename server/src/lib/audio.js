@@ -33,11 +33,47 @@ async function addAudioTrack(videoPath, audioPath, outputPath, options = {}) {
         filterComplex,
         '[0:v]copy[v]'
       ])
-      .outputOptions(['-map', '[v]', '-map', '[a]', '-shortest'])
+      // Убираем -shortest, чтобы длина видео не сокращалась до длины аудио
+      .outputOptions(['-map', '[v]', '-map', '[a]'])
       .on('end', () => resolve(outputPath))
       .on('error', (err) => reject(new Error(`Audio overlay failed: ${err.message}`)))
       .save(outputPath);
   });
 }
 
-module.exports = { addAudioTrack };
+/**
+ * Накладывает два аудио трека на видео в разные стерео-каналы.
+ * leftAudio → левый канал, rightAudio → правый канал.
+ * Видео не обрезается; аудио обрезается по длине видео.
+ * @param {string} videoPath
+ * @param {string} leftAudioPath
+ * @param {string} rightAudioPath
+ * @param {string} outputPath
+ * @param {Object} options
+ * @param {number} options.leftVolume — громкость левого канала (1.0 по умолчанию)
+ * @param {number} options.rightVolume — громкость правого канала (1.0 по умолчанию)
+ */
+async function addStereoAudioTrack(videoPath, leftAudioPath, rightAudioPath, outputPath, options = {}) {
+  const { leftVolume = 1.0, rightVolume = 1.0 } = options;
+
+  const videoDuration = await getVideoDuration(videoPath);
+
+  return new Promise((resolve, reject) => {
+    ffmpeg()
+      .input(videoPath)
+      .input(leftAudioPath)
+      .input(rightAudioPath)
+      .complexFilter([
+        `[1:a]atrim=0:${videoDuration},asetpts=PTS-STARTPTS,volume=${leftVolume}[left];\
+         [2:a]atrim=0:${videoDuration},asetpts=PTS-STARTPTS,volume=${rightVolume}[right];\
+         [left][right]join=inputs=2:channel_layout=stereo:map=0.0-FL|1.0-FR[a]`,
+        '[0:v]copy[v]'
+      ])
+      .outputOptions(['-map', '[v]', '-map', '[a]'])
+      .on('end', () => resolve(outputPath))
+      .on('error', (err) => reject(new Error(`Stereo audio overlay failed: ${err.message}`)))
+      .save(outputPath);
+  });
+}
+
+module.exports = { addAudioTrack, addStereoAudioTrack };

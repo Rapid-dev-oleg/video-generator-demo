@@ -3,7 +3,7 @@ const router = express.Router();
 const path = require('path');
 const fs = require('fs');
 const { mergeVideos } = require('../lib/merge');
-const { addAudioTrack } = require('../lib/audio');
+const { addAudioTrack, addStereoAudioTrack } = require('../lib/audio');
 const { addLogo } = require('../lib/logo');
 const { ensureDir } = require('../lib/utils');
 
@@ -58,6 +58,26 @@ router.post('/audio', async (req, res) => {
     const outPath = path.join(OUTPUT_DIR, outFile);
 
     await addAudioTrack(videoPath, audioPath, outPath, { volume, loop });
+    res.json({ path: `/uploads/output/${outFile}`, filename: outFile });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/audio-stereo', async (req, res) => {
+  try {
+    const { videoFile, leftAudio, rightAudio, leftVolume = 1.0, rightVolume = 1.0 } = req.body;
+    if (!videoFile || !leftAudio || !rightAudio) {
+      return res.status(400).json({ error: 'videoFile, leftAudio and rightAudio required' });
+    }
+
+    const videoPath = path.join(OUTPUT_DIR, videoFile);
+    const leftPath = path.join(AUDIO_DIR, leftAudio);
+    const rightPath = path.join(AUDIO_DIR, rightAudio);
+    const outFile = `stereo_${Date.now()}.mp4`;
+    const outPath = path.join(OUTPUT_DIR, outFile);
+
+    await addStereoAudioTrack(videoPath, leftPath, rightPath, outPath, { leftVolume, rightVolume });
     res.json({ path: `/uploads/output/${outFile}`, filename: outFile });
   } catch (err) {
     res.status(500).json({ error: err.message });

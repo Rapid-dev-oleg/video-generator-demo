@@ -1,9 +1,13 @@
 import { useState } from 'react';
-import { mergeClips, addAudio, addLogo, uploadLogo } from '../hooks/useApi';
+import { mergeClips, addAudio, addStereoAudio, addLogo, uploadLogo } from '../hooks/useApi';
 
 export default function ClipEditor({ segments, setSegments, onPreview, onLoading, onAddSegments, onOperationComplete, audioList = [], selectedAudio = '', onSelectAudio }) {
   const [draggedIdx, setDraggedIdx] = useState(null);
   const [volume, setVolume] = useState(0.8);
+  const [leftAudio, setLeftAudio] = useState('');
+  const [rightAudio, setRightAudio] = useState('');
+  const [leftVolume, setLeftVolume] = useState(1.0);
+  const [rightVolume, setRightVolume] = useState(0.5);
   const [logoPos, setLogoPos] = useState('bottom-right');
   const [processing, setProcessing] = useState(false);
 
@@ -55,6 +59,16 @@ export default function ClipEditor({ segments, setSegments, onPreview, onLoading
     const target = segments[0];
     const res = await addAudio(target.filename, selectedAudio, volume, false);
     const updated = { filename: res.filename, label: 'Video + audio', duration: '—' };
+    setSegments([updated, ...segments.slice(1)]);
+    onPreview?.(res.path);
+  });
+
+  const handleAddStereoAudio = () => runOperation(async () => {
+    if (!leftAudio || !rightAudio) throw new Error('Select both left and right audio');
+    if (leftAudio === rightAudio) throw new Error('Left and right audio must be different');
+    const target = segments[0];
+    const res = await addStereoAudio(target.filename, leftAudio, rightAudio, leftVolume, rightVolume);
+    const updated = { filename: res.filename, label: 'Video + stereo audio', duration: '—' };
     setSegments([updated, ...segments.slice(1)]);
     onPreview?.(res.path);
   });
@@ -132,6 +146,23 @@ export default function ClipEditor({ segments, setSegments, onPreview, onLoading
           <input type="range" min="0" max="2" step="0.1" value={volume} onChange={e => setVolume(Number(e.target.value))} style={{ width: 80 }} title={`Volume: ${volume}`} />
           <button className="btn btn-secondary" onClick={handleAddAudio} disabled={processing || !selectedAudio || segments.length === 0}>
             🎵 Apply audio
+          </button>
+          {segments.length > 0 && <span style={{ fontSize: 11, color: '#64748b' }}>to {segments[0].label || segments[0].filename}</span>}
+        </div>
+
+        <div className="timeline-action-group">
+          <select className="select" style={{ width: 130 }} value={leftAudio} onChange={e => setLeftAudio(e.target.value)}>
+            <option value="">— Left channel —</option>
+            {audioList.map(a => <option key={`l-${a.id}`} value={a.id}>{a.name}</option>)}
+          </select>
+          <input type="range" min="0" max="2" step="0.1" value={leftVolume} onChange={e => setLeftVolume(Number(e.target.value))} style={{ width: 60 }} title={`Left: ${leftVolume}`} />
+          <select className="select" style={{ width: 130 }} value={rightAudio} onChange={e => setRightAudio(e.target.value)}>
+            <option value="">— Right channel —</option>
+            {audioList.map(a => <option key={`r-${a.id}`} value={a.id}>{a.name}</option>)}
+          </select>
+          <input type="range" min="0" max="2" step="0.1" value={rightVolume} onChange={e => setRightVolume(Number(e.target.value))} style={{ width: 60 }} title={`Right: ${rightVolume}`} />
+          <button className="btn btn-secondary" onClick={handleAddStereoAudio} disabled={processing || !leftAudio || !rightAudio || segments.length === 0}>
+            🎧 Stereo audio
           </button>
           {segments.length > 0 && <span style={{ fontSize: 11, color: '#64748b' }}>to {segments[0].label || segments[0].filename}</span>}
         </div>

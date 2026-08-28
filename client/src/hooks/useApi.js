@@ -27,6 +27,8 @@ export const fetchClips = () => api.get('/clips').then(r => r.data);
 export const fetchVideos = () => api.get('/clips/videos').then(r => r.data);
 export const mergeClips = (segments) => api.post('/clips/merge', { segments }).then(r => r.data);
 export const addAudio = (videoFile, audioFile, volume, loop) => api.post('/clips/audio', { videoFile, audioFile, volume, loop }).then(r => r.data);
+export const addStereoAudio = (videoFile, leftAudio, rightAudio, leftVolume, rightVolume) =>
+  api.post('/clips/audio-stereo', { videoFile, leftAudio, rightAudio, leftVolume, rightVolume }).then(r => r.data);
 export const addLogo = (videoFile, position, margin, scale) => api.post('/clips/logo', { videoFile, position, margin, scale }).then(r => r.data);
 export const uploadLogo = (file) => {
   const fd = new FormData();
