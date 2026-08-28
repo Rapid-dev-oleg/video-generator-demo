@@ -31,6 +31,7 @@ export const addAudio = (videoFile, audioFile, volume, loop) => api.post('/clips
 export const addStereoAudio = (videoFile, leftAudio, rightAudio, leftVolume, rightVolume) =>
   api.post('/clips/audio-stereo', { videoFile, leftAudio, rightAudio, leftVolume, rightVolume }).then(r => r.data);
 export const addLogo = (videoFile, position, margin, scale) => api.post('/clips/logo', { videoFile, position, margin, scale }).then(r => r.data);
+export const applyOverlays = (videoFile, overlays) => api.post('/clips/overlays', { videoFile, overlays }).then(r => r.data);
 export const uploadLogo = (file) => {
   const fd = new FormData();
   fd.append('logo', file);

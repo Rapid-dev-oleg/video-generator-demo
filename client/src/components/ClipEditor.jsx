@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { mergeClips, addAudio, addStereoAudio, addLogo, uploadLogo, fetchClipDuration } from '../hooks/useApi';
+import OverlaysPanel from './OverlaysPanel';
 
 export default function ClipEditor({ segments, setSegments, onPreview, onLoading, onAddSegments, onOperationComplete, audioList = [], selectedAudio = '', onSelectAudio }) {
   const [draggedIdx, setDraggedIdx] = useState(null);
@@ -119,6 +120,13 @@ export default function ClipEditor({ segments, setSegments, onPreview, onLoading
     onPreview?.(res.path);
   });
 
+  const handleOverlaysApplied = (res) => {
+    const updated = { filename: res.filename, label: 'Video + overlays', duration: '—' };
+    setSegments([updated, ...segments.slice(1)]);
+    onPreview?.(res.path);
+    onOperationComplete?.();
+  };
+
   const handleLogoUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -226,6 +234,12 @@ export default function ClipEditor({ segments, setSegments, onPreview, onLoading
           </label>
         </div>
       </div>
+
+      <OverlaysPanel
+        videoFile={segments[0]?.filename}
+        onApplied={handleOverlaysApplied}
+        disabled={processing || segments.length === 0}
+      />
     </div>
   );
 }

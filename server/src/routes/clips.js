@@ -5,6 +5,7 @@ const fs = require('fs');
 const { mergeVideos } = require('../lib/merge');
 const { addAudioTrack, addStereoAudioTrack } = require('../lib/audio');
 const { addLogo } = require('../lib/logo');
+const { applyOverlays } = require('../lib/overlays');
 const { ensureDir } = require('../lib/utils');
 
 const OUTPUT_DIR = path.join(__dirname, '../../uploads/output');
@@ -28,7 +29,7 @@ router.get('/', (req, res) => {
 });
 
 router.get('/videos', (req, res) => {
-  res.json(listOutputFiles(/^(merged_|audio_|final_|stereo_).*\.mp4$/i));
+  res.json(listOutputFiles(/^(merged_|audio_|final_|stereo_|overlay_).*\.mp4$/i));
 });
 
 router.get('/duration/:filename', async (req, res) => {
@@ -90,6 +91,23 @@ router.post('/audio-stereo', async (req, res) => {
     const outPath = path.join(OUTPUT_DIR, outFile);
 
     await addStereoAudioTrack(videoPath, leftPath, rightPath, outPath, { leftVolume, rightVolume });
+    res.json({ path: `/uploads/output/${outFile}`, filename: outFile });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/overlays', async (req, res) => {
+  try {
+    const { videoFile, overlays } = req.body;
+    if (!videoFile) return res.status(400).json({ error: 'videoFile required' });
+    if (!Array.isArray(overlays) || overlays.length === 0) return res.status(400).json({ error: 'overlays array required' });
+
+    const videoPath = path.join(OUTPUT_DIR, videoFile);
+    const outFile = `overlay_${Date.now()}.mp4`;
+    const outPath = path.join(OUTPUT_DIR, outFile);
+
+    await applyOverlays(videoPath, overlays, outPath);
     res.json({ path: `/uploads/output/${outFile}`, filename: outFile });
   } catch (err) {
     res.status(500).json({ error: err.message });
