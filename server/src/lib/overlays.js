@@ -3,6 +3,7 @@ const path = require('path');
 const ffmpeg = require('fluent-ffmpeg');
 const sharp = require('sharp');
 const QRCode = require('qrcode');
+
 const IMAGES_DIR = path.join(__dirname, '../../uploads/images');
 
 function toBase64(filePath) {
@@ -20,6 +21,12 @@ function escapeXml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&apos;');
+}
+
+function positionAlign(position) {
+  if (position.includes('left')) return 'left';
+  if (position.includes('right')) return 'right';
+  return 'center';
 }
 
 function getPosition(videoWidth, videoHeight, blockWidth, blockHeight, position, padding = 24) {
@@ -42,18 +49,23 @@ async function getVideoDimensions(videoPath) {
   return new Promise((resolve, reject) => {
     const { exec } = require('child_process');
     exec(`${cmd} -i "${videoPath}" 2>&1`, (error, stdout) => {
-      const match = stdout.match(/Stream #0[^\n]*Video:[^\n]*(\d{2,})x(\d{2,})/);
+      const match = stdout.match(/Video:[^\n]*?\b(\d{2,})x(\d{2,})\b/);
       if (!match) return reject(new Error('Could not determine video dimensions'));
       resolve({ width: parseInt(match[1]), height: parseInt(match[2]) });
     });
   });
 }
 
-async function renderAddressBlock(text) {
+async function renderAddressBlock(text, align = 'center') {
   const width = 900;
   const height = 90;
   const fontSize = 32;
-  const lines = escapeXml(text).split('\n').map(line => `<tspan x="${width / 2}" dy="${fontSize + 8}" text-anchor="middle">${line}</tspan>`).join('');
+  const textPadding = 28;
+
+  const anchor = align === 'left' ? 'start' : align === 'right' ? 'end' : 'middle';
+  const x = align === 'left' ? textPadding : align === 'right' ? width - textPadding : width / 2;
+
+  const lines = escapeXml(text).split('\n').map(line => `<tspan x="${x}" dy="${fontSize + 8}" text-anchor="${anchor}">${line}</tspan>`).join('');
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
       <defs>
@@ -62,7 +74,7 @@ async function renderAddressBlock(text) {
         </filter>
       </defs>
       <rect x="0" y="0" width="${width}" height="${height}" rx="12" fill="rgba(10,10,15,0.75)" filter="url(#shadow)"/>
-      <text x="${width / 2}" y="${height / 2 - (text.split('\n').length * (fontSize + 8)) / 2 + fontSize / 2}" fill="#f8fafc" font-family="system-ui, -apple-system, sans-serif" font-size="${fontSize}" font-weight="500">${lines}</text>
+      <text x="${x}" y="${height / 2 - (text.split('\n').length * (fontSize + 8)) / 2 + fontSize / 2}" fill="#f8fafc" font-family="system-ui, -apple-system, sans-serif" font-size="${fontSize}" font-weight="500">${lines}</text>
     </svg>
   `;
   return sharp(Buffer.from(svg)).png().toBuffer();
@@ -113,7 +125,7 @@ async function renderAgentCardBlock({ avatar, logo, name, phone, email }) {
 
 async function renderBlock(overlay) {
   switch (overlay.type) {
-    case 'address': return renderAddressBlock(overlay.text);
+    case 'address': return renderAddressBlock(overlay.text, positionAlign(overlay.position));
     case 'qr': return renderQRBlock(overlay.url);
     case 'agent-card': return renderAgentCardBlock(overlay);
     default: throw new Error(`Unknown overlay type: ${overlay.type}`);
@@ -139,38 +151,40 @@ async function applyOverlays(videoPath, overlays, outputPath) {
       const buffer = await renderBlock(overlay);
       const size = getBlockSize(overlay);
       const position = getPosition(videoWidth, videoHeight, size.width, size.height, overlay.position);
-      return { buffer, x: position.x, y: position.y };
+      return { input: buffer, left: position.x, top: position.y };
     })
   );
 
+  const compositePng = await sharp({
+    create: {
+      width: videoWidth,
+      height: videoHeight,
+      channels: 4,
+      background: { r: 0, g: 0, b: 0, alpha: 0 }
+    }
+  })
+    .composite(rendered)
+    .png()
+    .toBuffer();
+
   const tempDir = path.join(path.dirname(outputPath), '.tmp');
   if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
-  const pngPaths = rendered.map((r, i) => {
-    const p = path.join(tempDir, `overlay_${Date.now()}_${i}.png`);
-    fs.writeFileSync(p, r.buffer);
-    return p;
-  });
+  const compositePath = path.join(tempDir, `overlay_composite_${Date.now()}.png`);
+  fs.writeFileSync(compositePath, compositePng);
 
   return new Promise((resolve, reject) => {
-    let filterComplex = '';
-    rendered.forEach((r, i) => {
-      const in1 = i === 0 ? '0:v' : `v${i}`;
-      const out = `v${i + 1}`;
-      filterComplex += `${filterComplex ? ';' : ''}[${in1}][${i + 1}:v]overlay=${r.x}:${r.y}[${out}]`;
-    });
-
-    const cmd = ffmpeg(videoPath);
-    pngPaths.forEach(p => cmd.input(p));
-
-    cmd
-      .complexFilter(filterComplex)
-      .outputOptions(['-map', `[v${rendered.length}]`, '-map', '0:a?', '-c:a', 'copy'])
+    ffmpeg(videoPath)
+      .input(compositePath)
+      .complexFilter([
+        '[0:v][1:v]overlay=0:0[v]'
+      ])
+      .outputOptions(['-map', '[v]', '-map', '0:a?', '-c:a', 'copy'])
       .on('end', () => {
-        pngPaths.forEach(p => fs.unlinkSync(p));
+        fs.unlinkSync(compositePath);
         resolve(outputPath);
       })
       .on('error', (err) => {
-        pngPaths.forEach(p => { try { fs.unlinkSync(p); } catch {} });
+        try { fs.unlinkSync(compositePath); } catch {}
         reject(new Error(`Overlay failed: ${err.message}`));
       })
       .save(outputPath);

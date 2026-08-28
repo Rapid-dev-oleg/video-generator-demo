@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { applyOverlays, uploadImage } from '../hooks/useApi';
+
+const STORAGE_KEY = 'video-generator-overlays';
 
 const POSITIONS = [
   { id: 'bottom-center', label: '⬇️ Bottom center' },
@@ -24,10 +26,31 @@ const DEFAULT_OVERLAY = {
   logo: '',
 };
 
+function loadStoredOverlays() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    }
+  } catch {
+    // ignore corrupted storage
+  }
+  return [];
+}
+
 export default function OverlaysPanel({ open, onClose, videoFile, onApplied, disabled }) {
-  const [overlays, setOverlays] = useState([]);
+  const [overlays, setOverlays] = useState(loadStoredOverlays);
   const [processing, setProcessing] = useState(false);
   const [draft, setDraft] = useState(null);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(overlays));
+    } catch {
+      // storage may be full / private mode
+    }
+  }, [overlays]);
 
   if (!open) return null;
 
@@ -60,7 +83,6 @@ export default function OverlaysPanel({ open, onClose, videoFile, onApplied, dis
       });
       const res = await applyOverlays(videoFile, payload);
       onApplied?.(res);
-      setOverlays([]);
       onClose?.();
     } catch (err) {
       alert(err.response?.data?.error || err.message);
