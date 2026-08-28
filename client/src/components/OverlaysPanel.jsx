@@ -24,20 +24,16 @@ const DEFAULT_OVERLAY = {
   logo: '',
 };
 
-export default function OverlaysPanel({ videoFile, onApplied, disabled }) {
+export default function OverlaysPanel({ open, onClose, videoFile, onApplied, disabled }) {
   const [overlays, setOverlays] = useState([]);
-  const [expanded, setExpanded] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [draft, setDraft] = useState(null);
 
-  const startAdd = (type) => {
-    setDraft({ ...DEFAULT_OVERLAY, type, position: defaultPositionFor(type) });
-  };
+  if (!open) return null;
 
-  const defaultPositionFor = (type) => {
-    if (type === 'qr') return 'right-middle';
-    if (type === 'agent-card') return 'top-right';
-    return 'bottom-center';
+  const startAdd = (type) => {
+    const position = type === 'qr' ? 'right-middle' : type === 'agent-card' ? 'top-right' : 'bottom-center';
+    setDraft({ ...DEFAULT_OVERLAY, type, position });
   };
 
   const saveDraft = () => {
@@ -64,6 +60,8 @@ export default function OverlaysPanel({ videoFile, onApplied, disabled }) {
       });
       const res = await applyOverlays(videoFile, payload);
       onApplied?.(res);
+      setOverlays([]);
+      onClose?.();
     } catch (err) {
       alert(err.response?.data?.error || err.message);
     } finally {
@@ -88,20 +86,17 @@ export default function OverlaysPanel({ videoFile, onApplied, disabled }) {
   };
 
   return (
-    <div className="panel" style={{ marginTop: 12, height: 'auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <h3 style={{ margin: 0 }}>🎨 Overlays</h3>
-        <button className="btn btn-secondary" onClick={() => setExpanded(!expanded)}>
-          {expanded ? 'Collapse' : 'Configure'}
-        </button>
-      </div>
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="library-modal" onClick={e => e.stopPropagation()}>
+        <div className="library-header">
+          <div>
+            <h3>🎨 Overlays</h3>
+            <p style={{ margin: '4px 0 0', fontSize: 12, color: '#64748b' }}>Each block has its own position</p>
+          </div>
+          <button className="library-close" onClick={onClose}>×</button>
+        </div>
 
-      {!expanded && overlays.length > 0 && (
-        <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>{overlays.length} overlay(s)</div>
-      )}
-
-      {expanded && (
-        <>
+        <div className="library-body">
           <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
             <button className="btn btn-secondary" onClick={() => startAdd('address')} disabled={!!draft}>+ Address</button>
             <button className="btn btn-secondary" onClick={() => startAdd('qr')} disabled={!!draft}>+ QR code</button>
@@ -194,12 +189,18 @@ export default function OverlaysPanel({ videoFile, onApplied, disabled }) {
             ))}
             {overlays.length === 0 && <span style={{ color: '#64748b', fontSize: 12 }}>No overlays yet</span>}
           </div>
+        </div>
 
-          <button className="btn" onClick={handleApply} disabled={processing || disabled || overlays.length === 0}>
-            {processing ? 'Applying...' : '🎨 Apply overlays to 1st clip'}
-          </button>
-        </>
-      )}
+        <div className="library-footer">
+          <span style={{ fontSize: 12, color: '#64748b' }}>{videoFile || 'No video selected'}</span>
+          <div className="library-actions">
+            <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
+            <button className="btn" onClick={handleApply} disabled={processing || disabled || overlays.length === 0}>
+              {processing ? 'Applying...' : 'Apply overlays'}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

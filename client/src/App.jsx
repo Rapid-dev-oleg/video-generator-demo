@@ -124,8 +124,6 @@ function App() {
           onAddSegments={handleAddSegments}
           onOperationComplete={handleOperationComplete}
           audioList={audioList}
-          selectedAudio={selectedAudio}
-          onSelectAudio={setSelectedAudio}
         />
       </div>
 

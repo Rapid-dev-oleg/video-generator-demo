@@ -1,16 +1,13 @@
 import { useState, useEffect } from 'react';
-import { mergeClips, addAudio, addStereoAudio, addLogo, uploadLogo, fetchClipDuration } from '../hooks/useApi';
+import { mergeClips, fetchClipDuration } from '../hooks/useApi';
 import OverlaysPanel from './OverlaysPanel';
+import AudioModal from './AudioModal';
 
-export default function ClipEditor({ segments, setSegments, onPreview, onLoading, onAddSegments, onOperationComplete, audioList = [], selectedAudio = '', onSelectAudio }) {
+export default function ClipEditor({ segments, setSegments, onPreview, onLoading, onAddSegments, onOperationComplete, audioList = [] }) {
   const [draggedIdx, setDraggedIdx] = useState(null);
-  const [volume, setVolume] = useState(0.8);
-  const [leftAudio, setLeftAudio] = useState('');
-  const [rightAudio, setRightAudio] = useState('');
-  const [leftVolume, setLeftVolume] = useState(1.0);
-  const [rightVolume, setRightVolume] = useState(0.5);
-  const [logoPos, setLogoPos] = useState('bottom-right');
   const [processing, setProcessing] = useState(false);
+  const [audioOpen, setAudioOpen] = useState(false);
+  const [overlaysOpen, setOverlaysOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -93,49 +90,11 @@ export default function ClipEditor({ segments, setSegments, onPreview, onLoading
     onPreview?.(res.path);
   });
 
-  const handleAddAudio = () => runOperation(async () => {
-    if (!selectedAudio) throw new Error('Select audio');
-    const target = segments[0];
-    const res = await addAudio(target.filename, selectedAudio, volume, false);
-    const updated = { filename: res.filename, label: 'Video + audio', duration: '—' };
-    setSegments([updated, ...segments.slice(1)]);
-    onPreview?.(res.path);
-  });
-
-  const handleAddStereoAudio = () => runOperation(async () => {
-    if (!leftAudio || !rightAudio) throw new Error('Select both left and right audio');
-    if (leftAudio === rightAudio) throw new Error('Left and right audio must be different');
-    const target = segments[0];
-    const res = await addStereoAudio(target.filename, leftAudio, rightAudio, leftVolume, rightVolume);
-    const updated = { filename: res.filename, label: 'Video + stereo audio', duration: '—' };
-    setSegments([updated, ...segments.slice(1)]);
-    onPreview?.(res.path);
-  });
-
-  const handleAddLogo = () => runOperation(async () => {
-    const target = segments[0];
-    const res = await addLogo(target.filename, logoPos, 20, 0.15);
-    const updated = { filename: res.filename, label: 'Video + logo', duration: '—' };
-    setSegments([updated, ...segments.slice(1)]);
-    onPreview?.(res.path);
-  });
-
-  const handleOverlaysApplied = (res) => {
-    const updated = { filename: res.filename, label: 'Video + overlays', duration: '—' };
+  const handleOperationResult = (res, label) => {
+    const updated = { filename: res.filename, label, duration: '—' };
     setSegments([updated, ...segments.slice(1)]);
     onPreview?.(res.path);
     onOperationComplete?.();
-  };
-
-  const handleLogoUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    try {
-      await uploadLogo(file);
-      alert('Logo uploaded!');
-    } catch (err) {
-      alert(err.response?.data?.error || err.message);
-    }
   };
 
   return (
@@ -186,58 +145,28 @@ export default function ClipEditor({ segments, setSegments, onPreview, onLoading
         <button className="btn btn-secondary" onClick={handleMerge} disabled={processing || segments.length < 2}>
           🔗 Merge timeline into video
         </button>
-
-        <div className="timeline-action-group">
-          <select className="select" style={{ width: 160 }} value={selectedAudio} onChange={e => onSelectAudio?.(e.target.value)}>
-            <option value="">— Select audio —</option>
-            {audioList.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-          </select>
-          <input type="range" min="0" max="2" step="0.1" value={volume} onChange={e => setVolume(Number(e.target.value))} style={{ width: 80 }} title={`Volume: ${volume}`} />
-          <button className="btn btn-secondary" onClick={handleAddAudio} disabled={processing || !selectedAudio || segments.length === 0}>
-            🎵 Apply audio
-          </button>
-          {segments.length > 0 && <span style={{ fontSize: 11, color: '#64748b' }}>to {segments[0].label || segments[0].filename}</span>}
-        </div>
-
-        <div className="timeline-action-group">
-          <select className="select" style={{ width: 130 }} value={leftAudio} onChange={e => setLeftAudio(e.target.value)}>
-            <option value="">— Left channel —</option>
-            {audioList.map(a => <option key={`l-${a.id}`} value={a.id}>{a.name}</option>)}
-          </select>
-          <input type="range" min="0" max="2" step="0.1" value={leftVolume} onChange={e => setLeftVolume(Number(e.target.value))} style={{ width: 60 }} title={`Left: ${leftVolume}`} />
-          <select className="select" style={{ width: 130 }} value={rightAudio} onChange={e => setRightAudio(e.target.value)}>
-            <option value="">— Right channel —</option>
-            {audioList.map(a => <option key={`r-${a.id}`} value={a.id}>{a.name}</option>)}
-          </select>
-          <input type="range" min="0" max="2" step="0.1" value={rightVolume} onChange={e => setRightVolume(Number(e.target.value))} style={{ width: 60 }} title={`Right: ${rightVolume}`} />
-          <button className="btn btn-secondary" onClick={handleAddStereoAudio} disabled={processing || !leftAudio || !rightAudio || segments.length === 0}>
-            🎧 Stereo audio
-          </button>
-          {segments.length > 0 && <span style={{ fontSize: 11, color: '#64748b' }}>to {segments[0].label || segments[0].filename}</span>}
-        </div>
-
-        <div className="timeline-action-group">
-          <select className="select" style={{ width: 130 }} value={logoPos} onChange={e => setLogoPos(e.target.value)}>
-            <option value="bottom-right">↘️ Logo</option>
-            <option value="bottom-left">↙️ Logo</option>
-            <option value="top-right">↗️ Logo</option>
-            <option value="top-left">↖️ Logo</option>
-            <option value="center">⬡ Center</option>
-          </select>
-          <button className="btn btn-secondary" onClick={handleAddLogo} disabled={processing || segments.length === 0}>
-            🖼️ Apply logo
-          </button>
-          {segments.length > 0 && <span style={{ fontSize: 11, color: '#64748b' }}>to {segments[0].label || segments[0].filename}</span>}
-          <label className="btn btn-secondary" style={{ cursor: 'pointer' }}>
-            ⬆️ Upload logo
-            <input type="file" accept="image/png" style={{ display: 'none' }} onChange={handleLogoUpload} />
-          </label>
-        </div>
+        <button className="btn btn-secondary" onClick={() => setAudioOpen(true)} disabled={processing || segments.length === 0}>
+          🎧 Stereo audio
+        </button>
+        <button className="btn btn-secondary" onClick={() => setOverlaysOpen(true)} disabled={processing || segments.length === 0}>
+          🎨 Overlays
+        </button>
       </div>
 
-      <OverlaysPanel
+      <AudioModal
+        open={audioOpen}
+        onClose={() => setAudioOpen(false)}
         videoFile={segments[0]?.filename}
-        onApplied={handleOverlaysApplied}
+        audioList={audioList}
+        onApplied={(res) => handleOperationResult(res, 'Video + stereo audio')}
+        disabled={processing}
+      />
+
+      <OverlaysPanel
+        open={overlaysOpen}
+        onClose={() => setOverlaysOpen(false)}
+        videoFile={segments[0]?.filename}
+        onApplied={(res) => handleOperationResult(res, 'Video + overlays')}
         disabled={processing || segments.length === 0}
       />
     </div>
