@@ -57,15 +57,22 @@ async function getVideoDimensions(videoPath) {
 }
 
 async function renderAddressBlock(text, align = 'center') {
-  const width = 900;
-  const height = 90;
-  const fontSize = 32;
-  const textPadding = 28;
+  const padding = 30;
+  const fontSize = 14;
+  const lineHeight = fontSize + 6;
+  const rawLines = String(text || '').split('\n');
+  const lines = rawLines.map(escapeXml);
+  const width = measureAddressWidth(rawLines, padding);
+  const height = Math.max(60, lines.length * lineHeight + padding * 2);
 
   const anchor = align === 'left' ? 'start' : align === 'right' ? 'end' : 'middle';
-  const x = align === 'left' ? textPadding : align === 'right' ? width - textPadding : width / 2;
+  const x = align === 'left' ? padding : align === 'right' ? width - padding : width / 2;
+  const startDy = -(lines.length - 1) * lineHeight / 2;
 
-  const lines = escapeXml(text).split('\n').map(line => `<tspan x="${x}" dy="${fontSize + 8}" text-anchor="${anchor}">${line}</tspan>`).join('');
+  const tspans = lines.map((line, i) =>
+    `<tspan x="${x}" dy="${i === 0 ? startDy : lineHeight}" text-anchor="${anchor}">${line}</tspan>`
+  ).join('');
+
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
       <defs>
@@ -74,7 +81,7 @@ async function renderAddressBlock(text, align = 'center') {
         </filter>
       </defs>
       <rect x="0" y="0" width="${width}" height="${height}" rx="12" fill="rgba(10,10,15,0.75)" filter="url(#shadow)"/>
-      <text x="${x}" y="${height / 2 - (text.split('\n').length * (fontSize + 8)) / 2 + fontSize / 2}" fill="#f8fafc" font-family="system-ui, -apple-system, sans-serif" font-size="${fontSize}" font-weight="500">${lines}</text>
+      <text x="${x}" y="${height / 2}" fill="#f8fafc" font-family="system-ui, -apple-system, sans-serif" font-size="${fontSize}" font-weight="500" dominant-baseline="middle">${tspans}</text>
     </svg>
   `;
   return sharp(Buffer.from(svg)).png().toBuffer();
@@ -132,9 +139,25 @@ async function renderBlock(overlay) {
   }
 }
 
+function measureAddressWidth(lines, padding) {
+  const charWidth = 8.5; // approximate for 14px system-ui
+  const longest = Math.max(0, ...lines.map(l => l.length));
+  return Math.min(900, Math.max(200, Math.ceil(longest * charWidth + padding * 2)));
+}
+
+function getAddressSize(text) {
+  const padding = 30;
+  const fontSize = 14;
+  const lineHeight = fontSize + 6;
+  const rawLines = String(text || '').split('\n');
+  const width = measureAddressWidth(rawLines, padding);
+  const height = Math.max(60, rawLines.length * lineHeight + padding * 2);
+  return { width, height };
+}
+
 function getBlockSize(overlay) {
   switch (overlay.type) {
-    case 'address': return { width: 900, height: 90 };
+    case 'address': return getAddressSize(overlay.text);
     case 'qr': return { width: 200, height: 200 };
     case 'agent-card': return { width: 420, height: 170 };
     default: return { width: 200, height: 100 };
