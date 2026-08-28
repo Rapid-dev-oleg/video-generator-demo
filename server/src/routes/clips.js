@@ -28,7 +28,19 @@ router.get('/', (req, res) => {
 });
 
 router.get('/videos', (req, res) => {
-  res.json(listOutputFiles(/^(merged_|audio_|final_).*\.mp4$/i));
+  res.json(listOutputFiles(/^(merged_|audio_|final_|stereo_).*\.mp4$/i));
+});
+
+router.get('/duration/:filename', async (req, res) => {
+  try {
+    const { getVideoDuration } = require('../lib/utils');
+    const videoPath = path.join(OUTPUT_DIR, req.params.filename);
+    if (!fs.existsSync(videoPath)) return res.status(404).json({ error: 'File not found' });
+    const duration = await getVideoDuration(videoPath);
+    res.json({ filename: req.params.filename, duration });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 router.post('/merge', async (req, res) => {

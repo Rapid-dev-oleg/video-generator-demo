@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { mergeClips, addAudio, addStereoAudio, addLogo, uploadLogo } from '../hooks/useApi';
+import { useState, useEffect } from 'react';
+import { mergeClips, addAudio, addStereoAudio, addLogo, uploadLogo, fetchClipDuration } from '../hooks/useApi';
 
 export default function ClipEditor({ segments, setSegments, onPreview, onLoading, onAddSegments, onOperationComplete, audioList = [], selectedAudio = '', onSelectAudio }) {
   const [draggedIdx, setDraggedIdx] = useState(null);
@@ -10,6 +10,44 @@ export default function ClipEditor({ segments, setSegments, onPreview, onLoading
   const [rightVolume, setRightVolume] = useState(0.5);
   const [logoPos, setLogoPos] = useState('bottom-right');
   const [processing, setProcessing] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const missing = segments
+      .map((seg, idx) => ({ seg, idx }))
+      .filter(({ seg }) => typeof seg.duration !== 'number');
+    if (missing.length === 0) return;
+
+    Promise.all(
+      missing.map(({ seg, idx }) =>
+        fetchClipDuration(seg.filename)
+          .then(data => ({ idx, duration: data.duration }))
+          .catch(() => ({ idx, duration: null }))
+      )
+    ).then(results => {
+      if (cancelled) return;
+      const updates = results.filter(r => r.duration !== null);
+      if (updates.length === 0) return;
+      setSegments(prev => {
+        const next = [...prev];
+        updates.forEach(({ idx, duration }) => {
+          next[idx] = { ...next[idx], duration };
+        });
+        return next;
+      });
+    });
+
+    return () => { cancelled = true; };
+  }, [segments, setSegments]);
+
+  const totalDuration = segments.reduce((sum, seg) => sum + (typeof seg.duration === 'number' ? seg.duration : 0), 0);
+  const formatTime = (s) => {
+    if (!isFinite(s)) return '0:00';
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    const ms = Math.floor((s % 1) * 100);
+    return `${m}:${sec.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+  };
 
   const handleDragStart = (idx) => setDraggedIdx(idx);
   const handleDrop = (targetIdx) => {
@@ -95,7 +133,10 @@ export default function ClipEditor({ segments, setSegments, onPreview, onLoading
   return (
     <div className="panel" style={{ height: '100%' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <h3 style={{ margin: 0 }}>🎞️ Timeline {segments.length > 0 && <span style={{ color: '#64748b' }}>({segments.length})</span>}</h3>
+        <h3 style={{ margin: 0 }}>
+          🎞️ Timeline {segments.length > 0 && <span style={{ color: '#64748b' }}>({segments.length})</span>}
+          {segments.length > 0 && <span style={{ color: '#64748b', fontSize: 12, marginLeft: 8 }}>⏱ {formatTime(totalDuration)}</span>}
+        </h3>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn" onClick={onAddSegments} disabled={processing}>
             + Add clips / videos
